@@ -39,6 +39,8 @@ const siteSetting = ref<any>({
     SITE_MESSAGE: false,
     BROWSER_EMULATION: 'playwright',
     FLARESOLVERR_URL: '',
+    FLARESOLVERR_TIMEOUT: 60,
+    FLARESOLVERR_SESSION_TTL: 60,
   },
 })
 
@@ -239,15 +241,46 @@ onMounted(() => {
                   prepend-inner-icon="mdi-web"
                 />
               </VCol>
+            </VRow>
+            <VRow v-if="siteSetting.Site.BROWSER_EMULATION == 'flaresolverr'">
               <VCol cols="12" md="6">
                 <VTextField
                   v-model="siteSetting.Site.FLARESOLVERR_URL"
-                  v-show="siteSetting.Site.BROWSER_EMULATION == 'flaresolverr'"
                   :label="t('setting.site.flaresolverrUrl')"
                   :placeholder="'http://127.0.0.1:8191'"
                   :hint="t('setting.site.flaresolverrUrlHint')"
                   persistent-hint
                   prepend-inner-icon="mdi-server"
+                />
+              </VCol>
+              <VCol cols="12" md="3">
+                <VTextField
+                  v-model.number="siteSetting.Site.FLARESOLVERR_TIMEOUT"
+                  :label="t('setting.site.flaresolverrTimeout')"
+                  :hint="t('setting.site.flaresolverrTimeoutHint')"
+                  persistent-hint
+                  :suffix="t('setting.system.seconds')"
+                  type="number"
+                  :rules="[
+                    (v: any) => !!v || t('setting.system.required'),
+                    (v: any) => !isNaN(v) || t('setting.system.numbersOnly'),
+                  ]"
+                  prepend-inner-icon="mdi-clock-time-four-outline"
+                />
+              </VCol>
+              <VCol cols="12" md="3">
+                <VTextField
+                  v-model.number="siteSetting.Site.FLARESOLVERR_SESSION_TTL"
+                  :label="t('setting.site.flaresolverrSessionTTL')"
+                  :hint="t('setting.site.flaresolverrTimeoutHint')"
+                  persistent-hint
+                  :suffix="t('setting.system.minutes')"
+                  type="number"
+                  :rules="[
+                    (v: any) => !!v || t('setting.system.required'),
+                    (v: any) => !isNaN(v) || t('setting.system.numbersOnly'),
+                  ]"
+                  prepend-inner-icon="mdi-timer-outline"
                 />
               </VCol>
             </VRow>
