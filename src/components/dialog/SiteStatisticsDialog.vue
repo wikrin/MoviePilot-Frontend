@@ -117,6 +117,16 @@ function getTimeColor(seconds: number | undefined): string {
   return 'error'
 }
 
+// 获取成功率（与列表/概览口径一致）
+function getSuccessRate(stats: SiteStatistic | undefined): string {
+  if (!stats) return '-'
+  const success = Number(stats.success ?? 0)
+  const fail = Number(stats.fail ?? 0)
+  const total = success + fail
+  if (total <= 0) return '-'
+  return String(Math.round((success / total) * 100))
+}
+
 // 解析耗时记录
 function parseTimeRecords(note: any): Array<{ time: string; duration: number }> {
   if (!note) return []
@@ -178,6 +188,17 @@ const sortedSites = computed(() => {
     })
 })
 
+// 统计总览（与列表口径一致）
+const overviewCounts = computed(() => {
+  const items = sortedSites.value
+  const total = items.length
+  const connected = items.filter(i => i.status === 'connected').length
+  const slow = items.filter(i => i.status === 'slow').length
+  const failed = items.filter(i => i.status === 'failed').length
+  const unknown = total - connected - slow - failed
+  return { total, connected, slow, failed, unknown }
+})
+
 onMounted(() => {
   fetchSiteStats()
 })
@@ -206,25 +227,19 @@ onMounted(() => {
           <div class="statistics-overview pa-4">
             <div class="d-flex flex-wrap gap-4">
               <div class="stat-card">
-                <div class="stat-number">{{ siteStats.length }}</div>
+                <div class="stat-number">{{ overviewCounts.total }}</div>
                 <div class="stat-label">{{ t('site.totalSites') }}</div>
               </div>
               <div class="stat-card">
-                <div class="stat-number success--text">
-                  {{ siteStats.filter(s => s.lst_state === 0).length }}
-                </div>
+                <div class="stat-number success--text">{{ overviewCounts.connected }}</div>
                 <div class="stat-label">{{ t('site.normalSites') }}</div>
               </div>
               <div class="stat-card">
-                <div class="stat-number warning--text">
-                  {{ siteStats.filter(s => s.lst_state === 0 && s.seconds && s.seconds >= 5).length }}
-                </div>
+                <div class="stat-number warning--text">{{ overviewCounts.slow }}</div>
                 <div class="stat-label">{{ t('site.slowSites') }}</div>
               </div>
               <div class="stat-card">
-                <div class="stat-number error--text">
-                  {{ siteStats.filter(s => s.lst_state === 1).length }}
-                </div>
+                <div class="stat-number error--text">{{ overviewCounts.failed }}</div>
                 <div class="stat-label">{{ t('site.failedSites') }}</div>
               </div>
             </div>
@@ -270,13 +285,7 @@ onMounted(() => {
 
                   <!-- 成功率 -->
                   <div class="text-center">
-                    <div class="text-h6 font-weight-bold">
-                      {{
-                        item.stats?.success && item.stats?.fail
-                          ? Math.round((item.stats.success / (item.stats.success + item.stats.fail)) * 100)
-                          : '-'
-                      }}%
-                    </div>
+                    <div class="text-h6 font-weight-bold">{{ getSuccessRate(item.stats) }}%</div>
                     <div class="text-caption text-medium-emphasis">{{ t('site.successRate') }}</div>
                   </div>
 

@@ -867,7 +867,7 @@ onDeactivated(() => {
                     :hint="t('setting.system.tmdbImageDomainHint')"
                     persistent-hint
                     :placeholder="t('setting.system.tmdbImageDomainPlaceholder')"
-                    :items="['image.tmdb.org', 'static-mdb.v.geilijiasu.com']"
+                    :items="['image.tmdb.org']"
                     :rules="[(v: string) => !!v || t('setting.system.tmdbImageDomainRequired')]"
                     prepend-inner-icon="mdi-image"
                   />
