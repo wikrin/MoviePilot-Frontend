@@ -22,22 +22,38 @@ export function useBackgroundOptimization() {
       backgroundCloseDelay?: number
       reconnectDelay?: number
       maxReconnectAttempts?: number
+      connectDelay?: number // 新增：连接延迟
     },
   ) => {
     const manager = sseManagerSingleton.getManager(url, options)
+    const isConnected = ref(false)
 
     onMounted(() => {
-      manager.addMessageListener(listenerId, messageHandler)
+      // 延迟建立连接，确保组件完全挂载
+      const connectDelay = options?.connectDelay || 100
+      setTimeout(() => {
+        try {
+          manager.addMessageListener(listenerId, event => {
+            messageHandler(event)
+            isConnected.value = true
+          })
+        } catch (error) {
+          console.error('SSE连接建立失败:', error)
+        }
+      }, connectDelay)
     })
 
     onUnmounted(() => {
       manager.removeMessageListener(listenerId)
+      isConnected.value = false
     })
 
     return {
       manager,
       readyState: () => manager.readyState,
       close: () => manager.removeMessageListener(listenerId),
+      isConnected,
+      forceReconnect: () => manager.forceReconnect(),
     }
   }
 

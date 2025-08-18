@@ -619,7 +619,7 @@ onBeforeMount(() => {
                 <VListItem @click="clickSearch('title')">
                   <VListItemTitle>{{ t('media.search.byTitle') }}</VListItemTitle>
                 </VListItem>
-                <VListItem @click="clickSearch('imdb')">
+                <VListItem @click="clickSearch('imdbid')">
                   <VListItemTitle>{{ t('media.search.byImdb') }}</VListItemTitle>
                 </VListItem>
               </VList>

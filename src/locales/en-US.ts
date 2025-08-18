@@ -1079,6 +1079,7 @@ export default {
     program: 'Program',
     content: 'Content',
     refreshing: 'Refreshing',
+    initializing: 'Initializing',
   },
   moduleTest: {
     normal: 'Normal',

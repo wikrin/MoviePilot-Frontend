@@ -1075,6 +1075,7 @@ export default {
     program: '程序',
     content: '内容',
     refreshing: '正在刷新',
+    initializing: '正在初始化',
   },
   moduleTest: {
     normal: '正常',

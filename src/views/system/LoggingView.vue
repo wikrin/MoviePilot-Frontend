@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useI18n } from 'vue-i18n'
 import { isToday } from '@/@core/utils/index'
-import dayjs from 'dayjs';
+import dayjs from 'dayjs'
 import { useBackgroundOptimization } from '@/composables/useBackgroundOptimization'
 
 // 定义输入变量
@@ -15,6 +15,9 @@ const { useSSE } = useBackgroundOptimization()
 
 // 已解析的日志列表
 const parsedLogs = ref<{ level: string; date: string; time: string; program: string; content: string }[]>([])
+
+// 组件是否已挂载
+const isMounted = ref(false)
 
 // 表头
 const headers = [
@@ -72,23 +75,40 @@ function handleSSEMessage(event: MessageEvent) {
   }
 }
 
-// 使用优化的SSE连接
-useSSE(
-  `${import.meta.env.VITE_API_BASE_URL}system/logging?logfile=${
-    encodeURIComponent(props.logfile) ?? 'moviepilot.log'
-  }`,
+// 使用优化的SSE连接，添加延迟确保弹窗完全打开
+const { manager, isConnected } = useSSE(
+  `${import.meta.env.VITE_API_BASE_URL}system/logging?logfile=${encodeURIComponent(props.logfile) ?? 'moviepilot.log'}`,
   handleSSEMessage,
   `logging-${props.logfile}`,
   {
     backgroundCloseDelay: 5000,
     reconnectDelay: 3000,
-    maxReconnectAttempts: 3
-  }
+    maxReconnectAttempts: 3,
+    connectDelay: 300, // 延迟300ms建立连接，确保弹窗完全打开
+  },
 )
+
+// 监听弹窗状态变化，确保弹窗完全打开后再建立连接
+onMounted(() => {
+  // 延迟标记组件已挂载，确保弹窗完全渲染
+  setTimeout(() => {
+    isMounted.value = true
+  }, 200)
+})
+
+// 监听连接状态变化
+watch(isConnected, connected => {})
+
+// 监听日志数据变化
+watch(parsedLogs, logs => {}, { deep: true })
 </script>
 
 <template>
-  <LoadingBanner v-if="parsedLogs.length === 0" class="mt-12" :text="t('logging.refreshing') + ' ...'" />
+  <LoadingBanner
+    v-if="!isMounted || !isConnected || parsedLogs.length === 0"
+    class="mt-12"
+    :text="!isMounted ? t('logging.initializing') + ' ...' : t('logging.refreshing') + ' ...'"
+  />
   <div v-else>
     <VTable class="table-rounded" hide-default-footer disable-sort>
       <tbody>
@@ -104,8 +124,14 @@ useSSE(
             <VChip size="small" :color="getLogColor(item.level)" variant="elevated" v-text="item.level" />
           </template>
           <template #item.time="{ item }">
-            <span class="text-sm">{{ isToday(dayjs(item.date).toDate()) ? item.time : `${item.date}
-              ${item.time}` }}</span>
+            <span class="text-sm">
+              {{
+                isToday(dayjs(item.date).toDate())
+                  ? item.time
+                  : `${item.date}
+              ${item.time}`
+              }}
+            </span>
           </template>
           <template #item.program="{ item }">
             <h6 class="text-sm font-weight-medium">{{ item.program }}</h6>

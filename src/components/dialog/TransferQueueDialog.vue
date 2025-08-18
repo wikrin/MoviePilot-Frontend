@@ -127,7 +127,7 @@ const progressSSE = useProgressSSE(
   `${import.meta.env.VITE_API_BASE_URL}system/progress/filetransfer`,
   handleProgressMessage,
   'transfer-queue-progress',
-  progressActive
+  progressActive,
 )
 
 // 使用SSE监听加载进度
@@ -166,6 +166,7 @@ onUnmounted(() => {
         :value="progressValue"
         color="primary"
         indeterminate
+        :height="2"
       />
       <VCardItem v-if="dataList.length > 0 && progressValue > 0" class="text-center pt-2">
         <span class="text-sm">{{ progressText }}</span>

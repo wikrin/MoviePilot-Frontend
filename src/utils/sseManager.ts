@@ -14,6 +14,8 @@ export class SSEManager {
     reconnectDelay: number
     maxReconnectAttempts: number
   }
+  private reconnectAttempts = 0
+  private isConnecting = false
 
   constructor(url: string, options: Partial<typeof SSEManager.prototype.options> = {}) {
     this.url = url
@@ -21,7 +23,7 @@ export class SSEManager {
       backgroundCloseDelay: 5000, // 5秒后关闭后台连接
       reconnectDelay: 3000, // 3秒后重连
       maxReconnectAttempts: 3,
-      ...options
+      ...options,
     }
 
     this.setupVisibilityListener()
@@ -44,15 +46,14 @@ export class SSEManager {
 
   private handleBackground() {
     this.isBackground = true
-    
+
     // 延迟关闭SSE连接，避免频繁切换
     if (this.backgroundCloseTimer) {
       clearTimeout(this.backgroundCloseTimer)
     }
-    
+
     this.backgroundCloseTimer = window.setTimeout(() => {
       if (this.isBackground && this.eventSource) {
-        console.log('SSE: 后台关闭连接')
         this.eventSource.close()
         this.eventSource = null
       }
@@ -61,51 +62,57 @@ export class SSEManager {
 
   private handleForeground() {
     this.isBackground = false
-    
+
     // 清除后台关闭定时器
     if (this.backgroundCloseTimer) {
       clearTimeout(this.backgroundCloseTimer)
       this.backgroundCloseTimer = null
     }
-    
+
     // 立即重新建立连接
     if (!this.eventSource || this.eventSource.readyState === EventSource.CLOSED) {
-      console.log('SSE: 前台恢复连接')
       this.reconnectSSE()
     }
   }
 
   private reconnectSSE(attemptCount = 0) {
     if (attemptCount >= this.options.maxReconnectAttempts) {
-      console.warn('SSE: 达到最大重连次数')
       return
     }
 
+    if (this.isConnecting) {
+      return
+    }
+
+    this.isConnecting = true
+    this.reconnectAttempts = attemptCount
+
     try {
       this.eventSource = new EventSource(this.url)
-      
+
       this.eventSource.onopen = () => {
-        console.log('SSE: 连接已建立')
+        this.isConnecting = false
+        this.reconnectAttempts = 0
       }
-      
-      this.eventSource.onerror = (error) => {
-        console.error('SSE: 连接错误', error)
-        
+
+      this.eventSource.onerror = error => {
+        this.isConnecting = false
+
         if (this.eventSource?.readyState === EventSource.CLOSED) {
           // 连接已关闭，尝试重连
           if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer)
           }
-          
+
           this.reconnectTimer = window.setTimeout(() => {
             if (!this.isBackground) {
-              this.reconnectSSE(attemptCount + 1)
+              this.reconnectSSE(this.reconnectAttempts + 1)
             }
           }, this.options.reconnectDelay)
         }
       }
-      
-      this.eventSource.onmessage = (event) => {
+
+      this.eventSource.onmessage = event => {
         // 分发消息给所有监听器
         this.listeners.forEach(listener => {
           try {
@@ -115,9 +122,19 @@ export class SSEManager {
           }
         })
       }
-      
     } catch (error) {
-      console.error('SSE: 创建连接失败', error)
+      this.isConnecting = false
+
+      // 连接创建失败，尝试重连
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer)
+      }
+
+      this.reconnectTimer = window.setTimeout(() => {
+        if (!this.isBackground) {
+          this.reconnectSSE(this.reconnectAttempts + 1)
+        }
+      }, this.options.reconnectDelay)
     }
   }
 
@@ -126,9 +143,9 @@ export class SSEManager {
    */
   addMessageListener(id: string, listener: (event: MessageEvent) => void) {
     this.listeners.set(id, listener)
-    
-    // 如果还没有连接，现在建立连接
-    if (!this.eventSource && !this.isBackground) {
+
+    // 如果还没有连接且不在后台，现在建立连接
+    if (!this.eventSource && !this.isBackground && !this.isConnecting) {
       this.reconnectSSE()
     }
   }
@@ -138,7 +155,7 @@ export class SSEManager {
    */
   removeMessageListener(id: string) {
     this.listeners.delete(id)
-    
+
     // 如果没有监听器了，关闭连接
     if (this.listeners.size === 0) {
       this.close()
@@ -153,18 +170,20 @@ export class SSEManager {
       this.eventSource.close()
       this.eventSource = null
     }
-    
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
     }
-    
+
     if (this.backgroundCloseTimer) {
       clearTimeout(this.backgroundCloseTimer)
       this.backgroundCloseTimer = null
     }
-    
+
     this.listeners.clear()
+    this.isConnecting = false
+    this.reconnectAttempts = 0
   }
 
   /**
@@ -179,6 +198,37 @@ export class SSEManager {
    */
   get connectionUrl(): string {
     return this.url
+  }
+
+  /**
+   * 强制重新连接
+   */
+  forceReconnect() {
+    this.close()
+    if (!this.isBackground) {
+      this.reconnectSSE()
+    }
+  }
+
+  /**
+   * 检查是否有活跃的监听器
+   */
+  get hasActiveListeners(): boolean {
+    return this.listeners.size > 0
+  }
+
+  /**
+   * 获取当前重连次数
+   */
+  get currentReconnectAttempts(): number {
+    return this.reconnectAttempts
+  }
+
+  /**
+   * 检查是否达到最大重连次数
+   */
+  get hasReachedMaxAttempts(): boolean {
+    return this.reconnectAttempts >= this.options.maxReconnectAttempts
   }
 }
 
