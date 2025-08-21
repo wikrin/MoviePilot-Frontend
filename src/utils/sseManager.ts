@@ -69,8 +69,8 @@ export class SSEManager {
       this.backgroundCloseTimer = null
     }
 
-    // 立即重新建立连接
-    if (!this.eventSource || this.eventSource.readyState === EventSource.CLOSED) {
+    // 只有在有活跃监听器时才重新建立连接
+    if (this.listeners.size > 0 && (!this.eventSource || this.eventSource.readyState === EventSource.CLOSED)) {
       this.reconnectSSE()
     }
   }
@@ -81,6 +81,11 @@ export class SSEManager {
     }
 
     if (this.isConnecting) {
+      return
+    }
+
+    // 如果没有活跃的监听器，不进行重连
+    if (this.listeners.size === 0) {
       return
     }
 
@@ -105,7 +110,7 @@ export class SSEManager {
           }
 
           this.reconnectTimer = window.setTimeout(() => {
-            if (!this.isBackground) {
+            if (!this.isBackground && this.listeners.size > 0) {
               this.reconnectSSE(this.reconnectAttempts + 1)
             }
           }, this.options.reconnectDelay)
@@ -131,7 +136,7 @@ export class SSEManager {
       }
 
       this.reconnectTimer = window.setTimeout(() => {
-        if (!this.isBackground) {
+        if (!this.isBackground && this.listeners.size > 0) {
           this.reconnectSSE(this.reconnectAttempts + 1)
         }
       }, this.options.reconnectDelay)
@@ -205,7 +210,7 @@ export class SSEManager {
    */
   forceReconnect() {
     this.close()
-    if (!this.isBackground) {
+    if (!this.isBackground && this.listeners.size > 0) {
       this.reconnectSSE()
     }
   }

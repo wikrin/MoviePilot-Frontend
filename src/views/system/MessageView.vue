@@ -45,11 +45,16 @@ function handleSSEMessage(event: MessageEvent) {
 }
 
 // 使用优化的SSE连接
-useSSE(`${import.meta.env.VITE_API_BASE_URL}system/message?role=user`, handleSSEMessage, 'message-view', {
-  backgroundCloseDelay: 5000,
-  reconnectDelay: 3000,
-  maxReconnectAttempts: 3,
-})
+const { manager, isConnected } = useSSE(
+  `${import.meta.env.VITE_API_BASE_URL}system/message?role=user`,
+  handleSSEMessage,
+  'message-view',
+  {
+    backgroundCloseDelay: 5000,
+    reconnectDelay: 3000,
+    maxReconnectAttempts: 3,
+  },
+)
 
 // 调用API加载存量消息
 async function loadMessages({ done }: { done: any }) {
@@ -144,6 +149,26 @@ function compareTime(time1: string, time2: string) {
 function handleImageLoad() {
   emit('scroll')
 }
+
+// 暂停SSE连接
+function pauseSSE() {
+  if (manager) {
+    manager.removeMessageListener('message-view')
+  }
+}
+
+// 恢复SSE连接
+function resumeSSE() {
+  if (manager) {
+    manager.addMessageListener('message-view', handleSSEMessage)
+  }
+}
+
+// 暴露方法给父组件
+defineExpose({
+  pauseSSE,
+  resumeSSE,
+})
 
 onMounted(() => {
   // 组件挂载后触发一次滚动事件

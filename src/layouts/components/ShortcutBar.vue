@@ -50,6 +50,9 @@ const sendButtonDisabled = ref(false)
 // 消息对话框引用
 const messageDialogRef = ref<any>(null)
 
+// 消息视图引用
+const messageViewRef = ref<any>(null)
+
 // 滚动容器引用
 const messageContentRef = ref<any>()
 
@@ -115,6 +118,12 @@ async function openMessageDialog() {
   setTimeout(() => {
     forceScrollToEnd()
   }, 600)
+  // 等待对话框打开后恢复SSE连接
+  nextTick(() => {
+    if (messageViewRef.value && typeof messageViewRef.value.resumeSSE === 'function') {
+      messageViewRef.value.resumeSSE()
+    }
+  })
 }
 
 // 智能滚动到底部（只有用户在底部附近时才滚动）
@@ -182,6 +191,14 @@ function openMessageDialogFromExternal() {
 // 暴露方法给父组件
 defineExpose({
   openMessageDialog: openMessageDialogFromExternal,
+})
+
+// 监听消息对话框状态变化
+watch(messageDialog, newValue => {
+  if (!newValue && messageViewRef.value && typeof messageViewRef.value.pauseSSE === 'function') {
+    // 对话框关闭时暂停SSE连接
+    messageViewRef.value.pauseSSE()
+  }
 })
 
 onMounted(() => {
